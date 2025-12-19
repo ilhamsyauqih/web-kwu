@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4ADE80;
+  --color-primary-dark: #22C55E;
+  --color-primary-light: #86EFAC;
+  --color-background: #FFFFFF;
+  --color-secondary: #F0FDF4;
+}
+
+@layer base {
+  body {
+    /* Using generated classes from theme variables */
+    @apply bg-gray-50 text-gray-800 antialiased;
+
+    /* Background Silhouette Motif Configuration */
+    /* Replace 'background-motif.png' with your actual image in src/assets */
+    background-image: url('/src/assets/background-motif.png');
+    background-repeat: repeat;
+    background-size: 300px;
+    background-attachment: fixed;
+    background-blend-mode: soft-light;
+  }
+}
