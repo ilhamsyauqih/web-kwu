@@ -10,12 +10,12 @@ const Cart = () => {
 
     return (
         <Layout>
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">Your Cart</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">Keranjang Anda</h1>
 
             {cart.length === 0 ? (
                 <div className="text-center py-20">
-                    <p className="text-gray-500 text-lg mb-4">Your cart is empty.</p>
-                    <Link to="/catalog" className="text-primary-dark hover:underline font-semibold">Start Shopping</Link>
+                    <p className="text-gray-500 text-lg mb-4">Keranjang Anda kosong.</p>
+                    <Link to="/catalog" className="text-primary-dark hover:underline font-semibold">Mulai Belanja</Link>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -47,14 +47,14 @@ const Cart = () => {
                     </div>
 
                     <div className="bg-white p-6 rounded-lg shadow-sm h-fit">
-                        <h2 className="text-xl font-bold text-gray-900 mb-4">Order Summary</h2>
+                        <h2 className="text-xl font-bold text-gray-900 mb-4">Ringkasan Pesanan</h2>
                         <div className="flex justify-between mb-2 text-gray-600">
                             <span>Subtotal</span>
                             <span>Rp {totalPrice.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between mb-4 text-gray-600">
-                            <span>Shipping</span>
-                            <span>Calculated at checkout</span>
+                            <span>Pengiriman</span>
+                            <span>Dihitung saat pembayaran</span>
                         </div>
                         <div className="border-t pt-4 flex justify-between font-bold text-lg mb-6">
                             <span>Total</span>
@@ -62,7 +62,7 @@ const Cart = () => {
                         </div>
                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                             <Link to="/checkout" className="block w-full text-center bg-primary-dark text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition">
-                                Proceed to Checkout
+                                Lanjut ke Pembayaran
                             </Link>
                         </motion.div>
                     </div>

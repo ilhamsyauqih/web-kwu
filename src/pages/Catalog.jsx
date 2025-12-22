@@ -16,10 +16,10 @@ const Catalog = () => {
 
     // Mock data fallback
     const mockProducts = [
-        { id: 1, name: 'Gedebog Original', description: 'Classic crispy banana stem chips.', price: 15000, flavor: 'Original', stock: 100, image_url: 'https://placehold.co/400x400/png?text=Original' },
-        { id: 2, name: 'Gedebog Balado', description: 'Spicy and savory balado flavor.', price: 16000, flavor: 'Balado', stock: 80, image_url: 'https://placehold.co/400x400/png?text=Balado' },
-        { id: 3, name: 'Gedebog Cheese', description: 'Rich cheesy flavor.', price: 17000, flavor: 'Cheese', stock: 50, image_url: 'https://placehold.co/400x400/png?text=Cheese' },
-        { id: 4, name: 'Gedebog BBQ', description: 'Smoky BBQ flavor.', price: 16000, flavor: 'BBQ', stock: 60, image_url: 'https://placehold.co/400x400/png?text=BBQ' },
+        { id: 1, name: 'Gedebog Original', description: 'Keripik batang pisang renyah klasik.', price: 15000, flavor: 'Original', stock: 100, image_url: 'https://placehold.co/400x400/png?text=Original' },
+        { id: 2, name: 'Gedebog Balado', description: 'Rasa balado pedas dan gurih.', price: 16000, flavor: 'Balado', stock: 80, image_url: 'https://placehold.co/400x400/png?text=Balado' },
+        { id: 3, name: 'Gedebog Keju', description: 'Rasa keju yang kaya.', price: 17000, flavor: 'Keju', stock: 50, image_url: 'https://placehold.co/400x400/png?text=Cheese' },
+        { id: 4, name: 'Gedebog BBQ', description: 'Rasa BBQ asap.', price: 16000, flavor: 'BBQ', stock: 60, image_url: 'https://placehold.co/400x400/png?text=BBQ' },
     ];
 
     useEffect(() => {
@@ -48,19 +48,19 @@ const Catalog = () => {
         (product.flavor && product.flavor.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
-    if (loading) return <Layout><div className="text-center py-20">Loading products...</div></Layout>;
+    if (loading) return <Layout><div className="text-center py-20">Memuat produk...</div></Layout>;
 
     return (
         <Layout>
             <PageTransition>
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">
-                    Product Catalog
-                    {searchTerm && <span className="text-lg font-normal text-gray-500 ml-4">Results for "{searchTerm}"</span>}
+                    Katalog Produk
+                    {searchTerm && <span className="text-lg font-normal text-gray-500 ml-4">Hasil untuk "{searchTerm}"</span>}
                 </h1>
 
                 {filteredProducts.length === 0 ? (
                     <div className="text-center py-20 text-gray-500">
-                        No products found matching "{searchTerm}".
+                        Tidak ada produk yang ditemukan untuk "{searchTerm}".
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -87,11 +87,11 @@ const Catalog = () => {
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => {
                                                 addToCart(product);
-                                                toast.success('Added to cart!');
+                                                toast.success('Ditambahkan ke keranjang!');
                                             }}
                                             className="px-3 py-1.5 bg-primary-dark text-white rounded hover:bg-green-700 transition text-sm"
                                         >
-                                            Add to Cart
+                                            Tambah ke Keranjang
                                         </motion.button>
                                     </div>
                                 </div>

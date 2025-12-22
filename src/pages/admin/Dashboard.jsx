@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
@@ -9,37 +10,93 @@ const Dashboard = () => {
     const [salesData, setSalesData] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const updateStatus = async (orderId, newStatus) => {
+        try {
+            // Check if it's a numeric ID (Supabase usually) or check existing data source
+            // Simple heuristic used here: try Supabase first, if not found/error, try LocalStorage
+
+            // 1. Try Supabase Update
+            const { data, error } = await supabase
+                .from('orders')
+                .update({ status: newStatus })
+                .eq('id', orderId)
+                .select();
+
+            // Only return if we actually updated rows in Supabase
+            if (!error && data && data.length > 0) {
+                toast.success('Status pesanan diperbarui (Database)!');
+                fetchStats();
+                return;
+            }
+
+            // 2. Fallback to LocalStorage if Supabase failed (or didn't find it)
+            // Note: This assumes Supabase error implies "not found" or "connection issue", so we try local.
+            const localOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const orderIndex = localOrders.findIndex(o => o.id == orderId);
+
+            if (orderIndex !== -1) {
+                localOrders[orderIndex].status = newStatus;
+                localStorage.setItem('orders', JSON.stringify(localOrders));
+                toast.success('Status pesanan diperbarui (Lokal)!');
+                fetchStats();
+            } else {
+                // Only show error if we also failed locally and it wasn't a "row not found" silent fail
+                if (error) console.error('Supabase update error:', error);
+                // If clearly not found in either
+                if (error && orderIndex === -1) toast.error('Gagal memperbarui status.');
+            }
+
+        } catch (err) {
+            console.error('Update status error:', err);
+            toast.error('Terjadi kesalahan saat memperbarui status.');
+        }
+    };
+
     const fetchStats = async () => {
         setLoading(true);
         try {
-            // Fetch Orders
-            const { data: orders, error: ordersError } = await supabase.from('orders').select('*');
-            if (ordersError) throw ordersError;
+            // 1. Fetch from Supabase (Attempt)
+            let supabaseOrders = [];
+            let supabaseOrderItems = [];
 
-            // Fetch Order Items for Total Sold count
-            const { data: orderItems, error: itemsError } = await supabase.from('order_items').select('*');
-            if (itemsError) throw itemsError;
+            try {
+                const { data: orders, error: ordersError } = await supabase.from('orders').select('*');
+                if (!ordersError && orders) supabaseOrders = orders;
 
-            if (orders) {
+                const { data: orderItems, error: itemsError } = await supabase.from('order_items').select('*');
+                if (!itemsError && orderItems) supabaseOrderItems = orderItems;
+            } catch (err) {
+                console.log('Supabase fetch failed, proceeding with local data only.');
+            }
+
+            // 2. Fetch from Local Storage
+            const localOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const localOrderItems = JSON.parse(localStorage.getItem('order_items') || '[]');
+
+            // 3. Merge Data (Prioritizing unique IDs if possible, but for now simple concatenation)
+            // Note: In a real app we might want to deduplicate by ID if syncing logic existed.
+            const allOrders = [...supabaseOrders, ...localOrders];
+            const allOrderItems = [...supabaseOrderItems, ...localOrderItems];
+
+            if (allOrders.length > 0) {
                 // Calculate Stats
-                const revenue = orders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
-                const uniqueCustomers = new Set(orders.map(o => o.shipping_address)).size;
-                // Calculate total items sold from order_items
-                const totalItemsSold = orderItems ? orderItems.reduce((sum, item) => sum + (item.quantity || 1), 0) : 0;
+                const revenue = allOrders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+                const uniqueCustomers = new Set(allOrders.map(o => o.shipping_address)).size;
+                const totalItemsSold = allOrderItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
                 setStats({
-                    orders: orders.length,
+                    orders: allOrders.length,
                     revenue,
                     customers: uniqueCustomers,
                     itemsSold: totalItemsSold
                 });
 
                 // Prepare Recent Orders
-                setRecentOrders(orders.slice(0, 5).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+                setRecentOrders(allOrders.slice(0, 5).sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
 
                 // Prepare Chart Data (Revenue per Day)
                 const salesMap = {};
-                orders.forEach(order => {
+                allOrders.forEach(order => {
                     const date = new Date(order.created_at).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
                     salesMap[date] = (salesMap[date] || 0) + Number(order.total_amount);
                 });
@@ -49,24 +106,25 @@ const Dashboard = () => {
                     sales: salesMap[date]
                 }));
 
-                // Sort chart data by date if possible, or just keys
                 setSalesData(chartData);
+
+            } else {
+                // 4. Mock Data (Only if ABSOLUTELY no data exists)
+                setStats({ orders: 124, revenue: 15400000, customers: 89, itemsSold: 342 });
+                setRecentOrders([
+                    { id: 101, shipping_address: 'John Doe', total_amount: 45000, status: 'pending', created_at: new Date().toISOString() },
+                    { id: 100, shipping_address: 'Jane Smith', total_amount: 32000, status: 'shipped', created_at: new Date(Date.now() - 86400000).toISOString() },
+                ]);
+                setSalesData([
+                    { name: '12/15', sales: 150000 },
+                    { name: '12/16', sales: 230000 },
+                    { name: '12/17', sales: 180000 },
+                    { name: '12/18', sales: 320000 },
+                    { name: '12/19', sales: 250000 },
+                ]);
             }
         } catch (error) {
-            console.log('Error fetching stats (using mock):', error.message);
-            // Mock Data
-            setStats({ orders: 124, revenue: 15400000, customers: 89, itemsSold: 342 });
-            setRecentOrders([
-                { id: 101, shipping_address: 'John Doe', total_amount: 45000, status: 'pending', created_at: new Date().toISOString() },
-                { id: 100, shipping_address: 'Jane Smith', total_amount: 32000, status: 'shipped', created_at: new Date(Date.now() - 86400000).toISOString() },
-            ]);
-            setSalesData([
-                { name: '12/15', sales: 150000 },
-                { name: '12/16', sales: 230000 },
-                { name: '12/17', sales: 180000 },
-                { name: '12/18', sales: 320000 },
-                { name: '12/19', sales: 250000 },
-            ]);
+            console.error('Critical error in dashboard:', error);
         } finally {
             setLoading(false);
         }
@@ -142,8 +200,9 @@ const Dashboard = () => {
                                 <th className="px-6 py-3">Order ID</th>
                                 <th className="px-6 py-3">Customer</th>
                                 <th className="px-6 py-3">Status</th>
-                                <th className="px-6 py-3">Amount</th>
-                                <th className="px-6 py-3">Date</th>
+                                <th className="px-6 py-3">Total</th>
+                                <th className="px-6 py-3">Tanggal</th>
+                                <th className="px-6 py-3">Aksi</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -154,12 +213,33 @@ const Dashboard = () => {
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded-full text-xs font-semibold 
                                     ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                                order.status === 'shipped' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
-                                            {order.status}
+                                                order.status === 'shipped' ? 'bg-blue-100 text-blue-800' :
+                                                    order.status === 'confirmed' ? 'bg-indigo-100 text-indigo-800' :
+                                                        order.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                                            'bg-red-100 text-red-800'}`}>
+                                            {order.status === 'pending' && 'Menunggu'}
+                                            {order.status === 'confirmed' && 'Diterima'}
+                                            {order.status === 'shipped' && 'Dikirim'}
+                                            {order.status === 'completed' && 'Selesai'}
+                                            {order.status === 'cancelled' && 'Batal'}
+                                            {!['pending', 'confirmed', 'shipped', 'completed', 'cancelled'].includes(order.status) && order.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-gray-700">Rp {Number(order.total_amount).toLocaleString()}</td>
                                     <td className="px-6 py-4 text-gray-500 text-sm">{new Date(order.created_at).toLocaleDateString()}</td>
+                                    <td className="px-6 py-4">
+                                        <select
+                                            className="block w-full px-2 py-1 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                                            value={order.status}
+                                            onChange={(e) => updateStatus(order.id, e.target.value)}
+                                        >
+                                            <option value="pending">Menunggu</option>
+                                            <option value="confirmed">Diterima</option>
+                                            <option value="shipped">Dikirim</option>
+                                            <option value="completed">Selesai</option>
+                                            <option value="cancelled">Batal</option>
+                                        </select>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

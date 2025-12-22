@@ -58,14 +58,66 @@ const Checkout = () => {
                 if (itemsError) throw itemsError;
             }
 
-            toast.success('Order placed successfully!');
+            // 3. Save to user's order history (my_orders)
+            const myOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
+            myOrders.push({
+                id: orderData.id,
+                source: 'supabase',
+                created_at: orderData.created_at,
+                total_amount: totalPrice
+            });
+            localStorage.setItem('my_orders', JSON.stringify(myOrders));
+
+            toast.success('Pesanan berhasil dibuat!');
             clearCart();
             navigate('/');
 
         } catch (error) {
             console.error('Checkout error:', error);
-            // Fallback for demo if supabase fails (RLS or connection)
-            toast.success('Order placed successfully (Mock)!');
+
+            // Local Storage Fallback Strategy
+            // 1. Generate a mock ID
+            const mockOrderId = Date.now();
+            const timestamp = new Date().toISOString();
+
+            // 2. Create Order Object
+            const newOrder = {
+                id: mockOrderId,
+                user_id: 'local-user',
+                total_amount: totalPrice,
+                status: 'pending',
+                shipping_address: `${formData.name} (${formData.phone}), ${formData.address}`,
+                created_at: timestamp
+            };
+
+            // 3. Create Order Items
+            const newOrderItems = cart.map((item, index) => ({
+                id: `${mockOrderId}-${index}`, // unique id
+                order_id: mockOrderId,
+                product_id: item.id,
+                quantity: item.quantity,
+                price: item.price,
+                created_at: timestamp
+            }));
+
+            // 4. Save to LocalStorage
+            const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
+            const existingItems = JSON.parse(localStorage.getItem('order_items') || '[]');
+
+            localStorage.setItem('orders', JSON.stringify([newOrder, ...existingOrders]));
+            localStorage.setItem('order_items', JSON.stringify([...newOrderItems, ...existingItems]));
+
+            // 5. Save to user's order history (my_orders)
+            const myOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
+            myOrders.push({
+                id: mockOrderId,
+                source: 'local',
+                created_at: timestamp,
+                total_amount: totalPrice
+            });
+            localStorage.setItem('my_orders', JSON.stringify(myOrders));
+
+            toast.success('Pesanan berhasil dibuat (Disimpan lokal)!');
             clearCart();
             navigate('/');
         } finally {
@@ -76,15 +128,15 @@ const Checkout = () => {
     return (
         <Layout>
             <PageTransition>
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
+                <h1 className="text-3xl font-bold text-gray-900 mb-8">Pembayaran</h1>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Shipping Form */}
                     <div className="bg-white p-8 rounded-xl shadow-sm">
-                        <h2 className="text-xl font-bold text-gray-800 mb-6">Shipping Information</h2>
+                        <h2 className="text-xl font-bold text-gray-800 mb-6">Informasi Pengiriman</h2>
                         <form id="checkout-form" onSubmit={handleSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
                                 <input
                                     type="text"
                                     name="name"
@@ -95,7 +147,7 @@ const Checkout = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Nomor Telepon</label>
                                 <input
                                     type="tel"
                                     name="phone"
@@ -106,7 +158,7 @@ const Checkout = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Alamat</label>
                                 <textarea
                                     name="address"
                                     rows="4"
@@ -117,7 +169,7 @@ const Checkout = () => {
                                 ></textarea>
                             </div>
 
-                            <h2 className="text-xl font-bold text-gray-800 mt-8 mb-4">Payment Method</h2>
+                            <h2 className="text-xl font-bold text-gray-800 mt-8 mb-4">Metode Pembayaran</h2>
                             <div className="space-y-2">
                                 <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                     <input
@@ -128,7 +180,7 @@ const Checkout = () => {
                                         onChange={handleChange}
                                         className="text-primary-dark focus:ring-primary-dark"
                                     />
-                                    <span>Cash on Delivery (COD)</span>
+                                    <span>Bayar di Tempat (COD)</span>
                                 </label>
                                 <label className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                     <input
@@ -139,7 +191,7 @@ const Checkout = () => {
                                         onChange={handleChange}
                                         className="text-primary-dark focus:ring-primary-dark"
                                     />
-                                    <span>Bank Transfer</span>
+                                    <span>Transfer Bank</span>
                                 </label>
                             </div>
                         </form>
@@ -147,7 +199,7 @@ const Checkout = () => {
 
                     {/* Order Summary */}
                     <div className="bg-white p-8 rounded-xl shadow-sm h-fit">
-                        <h2 className="text-xl font-bold text-gray-800 mb-6">Order Summary</h2>
+                        <h2 className="text-xl font-bold text-gray-800 mb-6">Ringkasan Pesanan</h2>
                         <div className="space-y-4 mb-6">
                             {cart.map((item) => (
                                 <div key={item.id} className="flex justify-between">
@@ -168,7 +220,7 @@ const Checkout = () => {
                             disabled={loading || cart.length === 0}
                             className="w-full py-3 bg-primary-dark text-white font-bold rounded-lg hover:bg-green-700 transition disabled:opacity-50"
                         >
-                            {loading ? 'Processing...' : 'Place Order'}
+                            {loading ? 'Memproses...' : 'Buat Pesanan'}
                         </motion.button>
                     </div>
                 </div>

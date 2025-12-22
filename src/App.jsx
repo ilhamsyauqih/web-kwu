@@ -7,6 +7,7 @@ import Checkout from './pages/Checkout';
 import AdminLayout from './components/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import Stock from './pages/admin/Stock';
+import Orders from './pages/Orders';
 import { Toaster } from 'sonner';
 import { AnimatePresence } from 'framer-motion';
 
@@ -21,6 +22,7 @@ function App() {
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/orders" element={<Orders />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>

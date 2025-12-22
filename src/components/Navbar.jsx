@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ShoppingCart, Menu, X, User } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, ClipboardList } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
@@ -22,19 +22,19 @@ const Navbar = () => {
                             to="/"
                             className={({ isActive }) => `transition pb-1 ${isActive ? 'text-primary-dark border-b-2 border-primary-dark font-medium' : 'text-gray-700 hover:text-primary-dark'}`}
                         >
-                            Home
+                            Beranda
                         </NavLink>
                         <NavLink
                             to="/catalog"
                             className={({ isActive }) => `transition pb-1 ${isActive ? 'text-primary-dark border-b-2 border-primary-dark font-medium' : 'text-gray-700 hover:text-primary-dark'}`}
                         >
-                            Catalog
+                            Katalog
                         </NavLink>
                         <NavLink
                             to="/about"
                             className={({ isActive }) => `transition pb-1 ${isActive ? 'text-primary-dark border-b-2 border-primary-dark font-medium' : 'text-gray-700 hover:text-primary-dark'}`}
                         >
-                            About
+                            Tentang
                         </NavLink>
 
                         <div className="flex items-center space-x-4">
@@ -45,6 +45,9 @@ const Navbar = () => {
                                         {totalItems}
                                     </span>
                                 )}
+                            </Link>
+                            <Link to="/orders" className="text-gray-700 hover:text-primary-dark" title="Pesanan Saya">
+                                <ClipboardList className="w-6 h-6" />
                             </Link>
                             {/* Placeholder for User/Admin */}
                             <Link to="/admin" className="text-gray-700 hover:text-primary-dark">
@@ -62,6 +65,9 @@ const Navbar = () => {
                                 </span>
                             )}
                         </Link>
+                        <Link to="/orders" className="text-gray-700 hover:text-primary-dark" title="Pesanan Saya">
+                            <ClipboardList className="w-6 h-6" />
+                        </Link>
                         <button onClick={() => setIsOpen(!isOpen)} className="text-gray-700">
                             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
@@ -73,10 +79,11 @@ const Navbar = () => {
             {isOpen && (
                 <div className="md:hidden bg-white/90 backdrop-blur-md border-t">
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 flex flex-col">
-                        <Link to="/" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Home</Link>
-                        <Link to="/catalog" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Catalog</Link>
-                        <Link to="/about" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>About</Link>
-                        <Link to="/cart" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Cart</Link>
+                        <Link to="/" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Beranda</Link>
+                        <Link to="/catalog" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Katalog</Link>
+                        <Link to="/about" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Tentang</Link>
+                        <Link to="/cart" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Keranjang</Link>
+                        <Link to="/orders" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Pesanan Saya</Link>
                         <Link to="/admin" className="block px-3 py-2 text-gray-700 hover:bg-gray-100" onClick={() => setIsOpen(false)}>Admin</Link>
                     </div>
                 </div>
