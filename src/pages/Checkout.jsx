@@ -8,7 +8,7 @@ import PageTransition from '../components/PageTransition';
 import { motion } from 'framer-motion';
 
 const Checkout = () => {
-    const { cart, totalPrice, clearCart } = useCart();
+    const { cart, totalPrice, clearCart, sessionId } = useCart();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -25,6 +25,17 @@ const Checkout = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!sessionId) {
+            toast.error('Session tidak valid. Silakan refresh halaman.');
+            return;
+        }
+
+        if (cart.length === 0) {
+            toast.error('Keranjang kosong!');
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -32,7 +43,7 @@ const Checkout = () => {
             const { data: orderData, error: orderError } = await supabase
                 .from('orders')
                 .insert([{
-                    user_id: null, // Simplified for now (no auth)
+                    session_id: sessionId,
                     total_amount: totalPrice,
                     status: 'pending',
                     shipping_address: `${formData.name} (${formData.phone}), ${formData.address}`
@@ -43,78 +54,28 @@ const Checkout = () => {
             if (orderError) throw orderError;
 
             // 2. Create Order Items
-            if (orderData) {
-                const orderItems = cart.map(item => ({
-                    order_id: orderData.id,
-                    product_id: item.id,
-                    quantity: item.quantity,
-                    price_at_purchase: item.price
-                }));
+            const orderItems = cart.map(item => ({
+                order_id: orderData.id,
+                product_id: item.id,
+                quantity: item.quantity,
+                price_at_purchase: item.price
+            }));
 
-                const { error: itemsError } = await supabase
-                    .from('order_items')
-                    .insert(orderItems);
+            const { error: itemsError } = await supabase
+                .from('order_items')
+                .insert(orderItems);
 
-                if (itemsError) throw itemsError;
-            }
+            if (itemsError) throw itemsError;
 
-            // 3. Save to user's order history (my_orders)
-            const myOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
-            myOrders.push({
-                id: orderData.id,
-                source: 'supabase',
-                created_at: orderData.created_at,
-                total_amount: totalPrice
-            });
-            localStorage.setItem('my_orders', JSON.stringify(myOrders));
+            // 3. Clear cart
+            await clearCart();
 
             toast.success('Pesanan berhasil dibuat!');
-            clearCart();
             navigate('/orders');
 
         } catch (error) {
             console.error('Checkout error:', error);
-
-            // Local Storage Fallback Strategy
-            const mockOrderId = Date.now();
-            const timestamp = new Date().toISOString();
-
-            const newOrder = {
-                id: mockOrderId,
-                user_id: 'local-user',
-                total_amount: totalPrice,
-                status: 'pending',
-                shipping_address: `${formData.name} (${formData.phone}), ${formData.address}`,
-                created_at: timestamp
-            };
-
-            const newOrderItems = cart.map((item, index) => ({
-                id: `${mockOrderId}-${index}`,
-                order_id: mockOrderId,
-                product_id: item.id,
-                quantity: item.quantity,
-                price: item.price,
-                created_at: timestamp
-            }));
-
-            const existingOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-            const existingItems = JSON.parse(localStorage.getItem('order_items') || '[]');
-
-            localStorage.setItem('orders', JSON.stringify([newOrder, ...existingOrders]));
-            localStorage.setItem('order_items', JSON.stringify([...newOrderItems, ...existingItems]));
-
-            const myOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
-            myOrders.push({
-                id: mockOrderId,
-                source: 'local',
-                created_at: timestamp,
-                total_amount: totalPrice
-            });
-            localStorage.setItem('my_orders', JSON.stringify(myOrders));
-
-            toast.success('Pesanan berhasil dibuat (Disimpan lokal)!');
-            clearCart();
-            navigate('/orders');
+            toast.error('Gagal membuat pesanan. Silakan coba lagi.');
         } finally {
             setLoading(false);
         }
