@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import Layout from '../components/Layout';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabaseClient';
 import { toast } from 'sonner';
 import PageTransition from '../components/PageTransition';
 import { motion } from 'framer-motion';
@@ -12,6 +13,28 @@ const Home = () => {
     const { addToCart } = useCart();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchFeaturedProducts = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .limit(3);
+
+                if (error) throw error;
+                setFeaturedProducts(data || []);
+            } catch (err) {
+                console.error('Error fetching featured products:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchFeaturedProducts();
+    }, []);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -20,18 +43,9 @@ const Home = () => {
         }
     };
 
-    const handleAddToCart = (i) => {
-        // Mocking product data for the home page since it uses static loop
-        // Ideally this should fetch featured products like Catalog
-        const product = {
-            id: i + 100, // Offset ID to avoid conflict with catalog mock
-            name: `Rasa ${i}`,
-            price: 15000,
-            image_url: 'https://placehold.co/400x400/png?text=Flavor',
-            flavor: `Rasa ${i}`
-        };
+    const handleAddToCart = (product) => {
         addToCart(product);
-        toast.success(`Ditambahkan ke keranjang!`);
+        toast.success(`${product.name} ditambahkan ke keranjang!`);
     };
 
     return (
@@ -82,32 +96,51 @@ const Home = () => {
                     </div>
                 </div>
 
-                {/* Featured Section (Placeholder) */}
+                {/* Featured Section */}
                 <section>
                     <div className="flex justify-between items-end mb-8">
                         <h2 className="text-3xl font-bold text-gray-800">Rasa Terpopuler</h2>
                         <Link to="/catalog" className="text-primary-dark font-medium hover:underline">Lihat semua</Link>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        {[1, 2, 3].map((i) => (
-                            <div key={i} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition">
-                                <div className="h-48 bg-gray-100 rounded-lg mb-4 flex items-center justify-center">
-                                    <span className="text-gray-400">Gambar Rasa {i}</span>
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-2">Nama Rasa {i}</h3>
-                                <p className="text-gray-500 mb-4">Deskripsi lezat dari rasa {i}.</p>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-lg font-bold text-primary-dark">Rp 15.000</span>
-                                    <button
-                                        onClick={() => handleAddToCart(i)}
-                                        className="px-4 py-2 bg-primary/10 text-primary-dark rounded-lg hover:bg-primary/20 transition"
-                                    >
-                                        Tambah ke Keranjang
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    {loading ? (
+                        <div className="text-center py-12 text-gray-500">Memuat produk...</div>
+                    ) : featuredProducts.length === 0 ? (
+                        <div className="text-center py-12 text-gray-500">Belum ada produk tersedia</div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            {featuredProducts.map((product) => (
+                                <motion.div
+                                    key={product.id}
+                                    className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition"
+                                    whileHover={{ y: -5 }}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                >
+                                    <div className="h-48 bg-gray-100 rounded-lg mb-4 overflow-hidden">
+                                        <img
+                                            src={product.image_url || 'https://placehold.co/400x400/png?text=Product'}
+                                            alt={product.name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">{product.name}</h3>
+                                    <p className="text-sm text-gray-500 mb-2">{product.flavor}</p>
+                                    <p className="text-gray-600 text-sm mb-4">{product.description || 'Keripik batang pisang yang lezat.'}</p>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-lg font-bold text-primary-dark">Rp {product.price.toLocaleString()}</span>
+                                        <motion.button
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            onClick={() => handleAddToCart(product)}
+                                            className="px-4 py-2 bg-primary/10 text-primary-dark rounded-lg hover:bg-primary/20 transition"
+                                        >
+                                            Tambah
+                                        </motion.button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
                 </section>
             </PageTransition>
         </Layout>
