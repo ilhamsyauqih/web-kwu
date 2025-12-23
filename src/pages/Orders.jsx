@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { getSessionId } from '../lib/sessionManager';
 import Layout from '../components/Layout';
 import PageTransition from '../components/PageTransition';
 import { Link } from 'react-router-dom';
@@ -8,107 +9,101 @@ const Orders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchMyOrders = async () => {
-            setLoading(true);
-            try {
-                // 1. Get List of "My Orders" from LocalStorage
-                const myOrdersRefs = JSON.parse(localStorage.getItem('my_orders') || '[]');
+    const fetchMyOrders = async () => {
+        setLoading(true);
+        try {
+            const sessionId = getSessionId();
 
-                if (myOrdersRefs.length === 0) {
-                    setOrders([]);
-                    return;
+            if (!sessionId) {
+                setOrders([]);
+                setLoading(false);
+                return;
+            }
+
+            // Fetch orders for this session
+            const { data: ordersData, error: ordersError } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('session_id', sessionId)
+                .order('created_at', { ascending: false });
+
+            if (ordersError) throw ordersError;
+
+            if (!ordersData || ordersData.length === 0) {
+                setOrders([]);
+                setLoading(false);
+                return;
+            }
+
+            // Fetch order items with product details for each order
+            const ordersWithItems = await Promise.all(ordersData.map(async (order) => {
+                const { data: items, error: itemsError } = await supabase
+                    .from('order_items')
+                    .select(`
+                        *,
+                        products (
+                            id,
+                            name,
+                            image_url
+                        )
+                    `)
+                    .eq('order_id', order.id);
+
+                if (itemsError) {
+                    console.error('Error fetching items for order:', order.id, itemsError);
+                    return { ...order, items: [] };
                 }
 
-                // Mock product data for fallback
-                const mockProducts = [
-                    { id: 1, name: 'Gedebog Original', image_url: 'https://placehold.co/100x100/png?text=Original' },
-                    { id: 2, name: 'Gedebog Balado', image_url: 'https://placehold.co/100x100/png?text=Balado' },
-                    { id: 3, name: 'Gedebog Keju', image_url: 'https://placehold.co/100x100/png?text=Keju' },
-                    { id: 4, name: 'Gedebog BBQ', image_url: 'https://placehold.co/100x100/png?text=BBQ' },
-                ];
-
-                // 2. Fetch Data for each order including items
-                const fetchedOrders = await Promise.all(myOrdersRefs.map(async (ref) => {
-                    let order = null;
-
-                    if (ref.source === 'supabase') {
-                        // Fetch order from Supabase
-                        const { data, error } = await supabase
-                            .from('orders')
-                            .select('*')
-                            .eq('id', ref.id)
-                            .single();
-
-                        if (error || !data) {
-                            return { ...ref, status: 'unknown' };
-                        }
-                        order = { ...data, source: 'supabase' };
-                    } else {
-                        // Fetch from LocalStorage
-                        const localOrders = JSON.parse(localStorage.getItem('orders') || '[]');
-                        const found = localOrders.find(o => o.id == ref.id);
-                        if (!found) return { ...ref, status: 'unknown' };
-                        order = { ...found, source: 'local' };
-                    }
-
-                    // 3. Fetch order items for this order
-                    let orderItems = [];
-                    if (ref.source === 'supabase') {
-                        // Try to fetch from Supabase
-                        const { data: items, error: itemsError } = await supabase
-                            .from('order_items')
-                            .select('*')
-                            .eq('order_id', ref.id);
-
-                        if (!itemsError && items) {
-                            orderItems = items;
-                        }
-                    } else {
-                        // Fetch from LocalStorage
-                        const localItems = JSON.parse(localStorage.getItem('order_items') || '[]');
-                        orderItems = localItems.filter(item => item.order_id == ref.id);
-                    }
-
-                    // 4. Fetch product details for each item
-                    const itemsWithProducts = await Promise.all(orderItems.map(async (item) => {
-                        // Try to fetch product from Supabase
-                        const { data: product, error: productError } = await supabase
-                            .from('products')
-                            .select('name, image_url')
-                            .eq('id', item.product_id)
-                            .single();
-
-                        if (!productError && product) {
-                            return { ...item, ...product };
-                        }
-
-                        // Fallback to mock data
-                        const mockProduct = mockProducts.find(p => p.id == item.product_id) ||
-                            { name: `Product ${item.product_id}`, image_url: 'https://placehold.co/100x100/png?text=Product' };
-                        return { ...item, ...mockProduct };
-                    }));
-
-                    // Attach items to order
-                    order.items = itemsWithProducts;
-                    return order;
+                // Transform items to include product info
+                const transformedItems = items.map(item => ({
+                    ...item,
+                    name: item.products?.name || `Product ${item.product_id}`,
+                    image_url: item.products?.image_url || 'https://placehold.co/100x100/png?text=Product',
+                    price: item.price_at_purchase
                 }));
 
-                // Filter and sort
-                const sortedOrders = fetchedOrders
-                    .filter(o => o && o.status !== 'unknown')
-                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                return {
+                    ...order,
+                    items: transformedItems
+                };
+            }));
 
-                setOrders(sortedOrders);
+            setOrders(ordersWithItems);
 
-            } catch (error) {
-                console.error('Error fetching orders:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+        } catch (error) {
+            console.error('Error fetching orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchMyOrders();
+
+        const sessionId = getSessionId();
+        if (!sessionId) return;
+
+        // Real-time subscription for order status updates
+        const subscription = supabase
+            .channel('my-orders')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'orders',
+                    filter: `session_id=eq.${sessionId}`
+                },
+                () => {
+                    // Reload orders when status changes
+                    fetchMyOrders();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            subscription.unsubscribe();
+        };
     }, []);
 
     return (
