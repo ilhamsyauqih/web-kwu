@@ -92,13 +92,17 @@ create policy "Public products are viewable by everyone"
   on products for select
   using ( true );
 
-create policy "Authenticated users can insert products"
+create policy "Anyone can insert products"
   on products for insert
-  with check ( auth.role() = 'authenticated' );
+  with check ( true );
 
-create policy "Authenticated users can update products"
+create policy "Anyone can update products"
   on products for update
-  using ( auth.role() = 'authenticated' );
+  using ( true );
+
+create policy "Anyone can delete products"
+  on products for delete
+  using ( true );
 
 -- Policies for cart_items
 create policy "Anyone can view cart items"

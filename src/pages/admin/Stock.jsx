@@ -133,6 +133,7 @@ const Stock = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        console.log('Submitting form...', { formData, hasImage: !!imageFile });
         setUploading(true);
 
         try {
@@ -140,7 +141,15 @@ const Stock = () => {
 
             // Upload new image if selected
             if (imageFile) {
-                imageUrl = await uploadImage(imageFile);
+                console.log('Starting image upload...', imageFile.name);
+                try {
+                    imageUrl = await uploadImage(imageFile);
+                    console.log('Image uploaded successfully:', imageUrl);
+                } catch (uploadErr) {
+                    console.error('Image upload failed:', uploadErr);
+                    toast.error('Gagal upload gambar. Melanjutkan tanpa gambar baru...');
+                    // Keep existing image if edit, or empty if new
+                }
             }
 
             const productData = {
@@ -152,32 +161,39 @@ const Stock = () => {
                 image_url: imageUrl
             };
 
+            console.log('Saving product data to database...', productData);
+
             if (editingProduct) {
-                // Update existing product
+                console.log('Updating existing product ID:', editingProduct.id);
                 const { error } = await supabase
                     .from('products')
                     .update(productData)
                     .eq('id', editingProduct.id);
 
                 if (error) throw error;
+                console.log('Update successful');
                 toast.success('Produk berhasil diupdate!');
             } else {
-                // Add new product
+                console.log('Inserting new product');
                 const { error } = await supabase
                     .from('products')
                     .insert([productData]);
 
                 if (error) throw error;
+                console.log('Insert successful');
                 toast.success('Produk berhasil ditambahkan!');
             }
 
             setShowModal(false);
-            fetchProducts();
+            console.log('Fetching updated product list...');
+            await fetchProducts();
+            console.log('Form submission complete');
         } catch (err) {
-            console.error('Error saving product:', err);
-            toast.error('Gagal menyimpan produk');
+            console.error('Error in handleSubmit:', err);
+            toast.error(`Gagal menyimpan produk: ${err.message || 'Error tidak diketahui'}`);
         } finally {
             setUploading(false);
+            console.log('Uploading state cleared');
         }
     };
 
